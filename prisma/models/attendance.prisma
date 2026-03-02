@@ -1,0 +1,97 @@
+enum ClockInOutStatus {
+    EARLY
+    PUNCTUAL
+    LATE
+    ABSENT
+}
+
+enum ClockEventType {
+    IN
+    OUT
+}
+
+model ClockEvent {
+    id             String           @id @default(dbgenerated("generate_random_uuid()")) @db.Uuid
+    attendance     Attendance?      @relation(fields: [attendanceId], references: [id])
+    attendanceId   String?          @db.Uuid
+    // -----------------------------
+    type           ClockEventType
+    status         ClockInOutStatus
+    timestamp      DateTime
+    // -----------------------------
+    deviceInfo     String?
+    ipAddress      String?
+    faceEncoding   String?
+    qrCodeContent  String?
+    longitude      Float?
+    latitude       Float?
+    // -----------------------------
+    isOverride     Boolean          @default(false) // indicates if this clock event was created as an override
+    overriddenById String?
+    overriddenBy   User?            @relation("ClockOverrideUser", fields: [overriddenById], references: [id])
+    // -----------------------------
+    isActive       Boolean          @default(true)
+    createdAt      DateTime         @default(now())
+    updatedAt      DateTime         @updatedAt
+
+    @@index([attendanceId])
+    @@index([type])
+    @@index([status])
+}
+
+model Location {
+    id           String       @id @default(dbgenerated("generate_random_uuid()")) @db.Uuid
+    email        String?
+    phone        String?
+    address      String
+    extraAddress String?
+    country      String?
+    state        String?
+    city         String?
+    lga          String?
+    postalCode   String?
+    latitude     Float
+    longitude    Float
+    attendances  Attendance[]
+    users        User[]
+    isActive     Boolean      @default(true)
+    createdAt    DateTime     @default(now())
+    createdBy    User         @relation("LocationCreatedBy", fields: [createdById], references: [id])
+    createdById  String
+    updatedAt    DateTime     @updatedAt
+    updatedBy    User?        @relation("LocationUpdatedBy", fields: [updatedById], references: [id])
+    updatedById  String?
+}
+
+model Attendance {
+    id          String       @id @default(dbgenerated("generate_random_uuid()")) @db.Uuid
+    user        User         @relation(fields: [userId], references: [id])
+    userId      String
+    location    Location     @relation(fields: [locationId], references: [id])
+    locationId  String
+    email       String // duplicated data from user for indexing
+    phone       String // duplicated data from user for indexing
+    workDay     DateTime // normalized to the start of the day (utc)
+    clockEvents ClockEvent[]
+    // -----------------------------
+    isActive    Boolean      @default(true)
+    createdAt   DateTime     @default(now())
+    createdBy   User         @relation("CreatedBy", fields: [createdById], references: [id])
+    createdById String
+    updatedAt   DateTime     @updatedAt
+    updatedBy   User?        @relation("UpdatedBy", fields: [updatedById], references: [id])
+    updatedById String?
+    // -----------------------------
+    // isClockedIn   Boolean
+    // clockInStatus ClockInOutStatus
+    // clockedInAt   DateTime
+    // -----------------------------
+    // isClockedOut   Boolean
+    // clockOutStatus ClockInOutStatus
+    // clockedOutAt   DateTime
+
+    @@unique([userId, workDay]) // one attendance for each user per day
+    @@index([userId])
+    @@index([userId, workDay])
+    @@index([email, workDay])
+}

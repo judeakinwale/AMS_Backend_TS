@@ -1,0 +1,116 @@
+enum Role {
+    User
+    Staff
+    Admin
+    SuperAdmin
+}
+
+enum ApprovalRole {
+    Team_Lead
+    Team_Manager
+    Finance_Officer
+    Compliance_Officer
+}
+
+enum Status {
+    ACTIVE
+    INACTIVE
+    BANNED
+    QUERY
+}
+
+enum LeaveType {
+    ANNUAL
+    SICK
+    MATERNITY
+    PATERNITY
+    VACATION
+    BEREAVEMENT
+    UNPAID
+    OTHER
+}
+
+model BanDetails {
+    id        String  @id @default(dbgenerated("generate_random_uuid()")) @db.Uuid
+    user      User    @relation(fields: [userId], references: [id])
+    userId    String  @db.Uuid
+    duration  Int? // duration in days, 1000000000 for permanent ban
+    startDate String?
+    endDate   String?
+    reason    String?
+}
+
+model LeaveDetails {
+    id        String    @id @default(dbgenerated("generate_random_uuid()")) @db.Uuid
+    user      User      @relation(fields: [userId], references: [id])
+    userId    String    @db.Uuid
+    type      LeaveType
+    duration  Int? // duration in days
+    startDate String?
+    endDate   String?
+    reason    String?
+}
+
+model LoginDetails {
+    id         String   @id @default(dbgenerated("generate_random_uuid()")) @db.Uuid
+    timestamp  DateTime
+    identifier String?
+    ipAddress  String?
+    location   String?
+    users      User[]
+}
+
+// The self-relation between User and createdBy/users needs an explicit relation name to resolve ambiguity.
+// Use the same @relation name on both sides (createdBy and users).
+model User {
+    id         String  @id @default(dbgenerated("generate_random_uuid()")) @db.Uuid
+    employeeId String?
+    jobLevel   String?
+
+    type                  String?
+    loginToken            String?
+    fullname              String?
+    firstname             String?
+    middlename            String?
+    lastname              String?
+    email                 String?        @unique
+    dob                   String?
+    phone                 String?
+    company               String?
+    department            String?
+    gender                String?
+    image                 String? // base64 encoded image string
+    role                  String?
+    password              String?
+    status                Status         @default(ACTIVE)
+    banHistory            BanDetails[] // for storing bans and checking if the last ban is still active
+    leaveHistory          LeaveDetails[] // ''
+    address               String?
+    country               String?
+    state                 String?
+    province              String?
+    lga                   String?
+    location              Location?      @relation(fields: [locationId], references: [id])
+    locationId            String?        @db.Uuid
+    isTrial               Boolean?
+    trialExpiry           DateTime?
+    isActive              Boolean?
+    activationToken       String?
+    resetPasswordToken    String?
+    isLoggedIn            Boolean?
+    lastLogIn             DateTime?
+    loginAttempts         Int[] // store timestamp for login attempts with array length used to track failed login attempts
+    loginDetails          LoginDetails?  @relation(fields: [loginDetailsId], references: [id]) // store successful login details
+    loginDetailsId        String?        @db.Uuid
+    attendanceHistory     Attendance[]
+    createdAttendances    Attendance[]   @relation("CreatedBy")
+    updatedAttendances    Attendance[]   @relation("UpdatedBy")
+    overriddenClockEvents ClockEvent[]   @relation("ClockOverrideUser")
+    createdLocations      Location[]     @relation("LocationCreatedBy")
+    updatedLocations      Location[]     @relation("LocationUpdatedBy")
+    createdBy             User           @relation("UserCreatedBy", fields: [createdById], references: [id])
+    createdUsers          User[]         @relation("UserCreatedBy")
+    createdById           String         @db.Uuid
+    createdAt             DateTime
+    updatedAt             DateTime?
+}
